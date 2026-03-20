@@ -144,17 +144,33 @@ WORKFLOW_INTENT_HINTS = {
     "run command": ["run command", "execute command", "terminal command run karo"],
 }
 
-# Initialize Hybrid ML Engine (Deep Learning + Generative AI)
+# Lazy ML initialization keeps server startup fast and button actions responsive.
 hybrid_ml_engine: Optional[HybridIntentEngine] = None
-if ML_AVAILABLE:
-    hybrid_ml_engine = get_hybrid_engine()
-    # Train on action commands
+ML_INIT_ATTEMPTED = False
+
+
+def get_ml_engine() -> Optional[HybridIntentEngine]:
+    global hybrid_ml_engine, ML_INIT_ATTEMPTED
+    if not ML_AVAILABLE:
+        return None
+
+    # Disabled by default to avoid heavy startup (TensorFlow + model warmup).
+    if os.getenv("POCKET_ENABLE_ML", "0") != "1":
+        return None
+
+    if ML_INIT_ATTEMPTED:
+        return hybrid_ml_engine
+
+    ML_INIT_ATTEMPTED = True
     try:
+        hybrid_ml_engine = get_hybrid_engine()
         hybrid_ml_engine.initialize_with_commands(ACTION_TRAINING_PHRASES, WORKFLOW_INTENT_HINTS)
-        print("✓ ML Engine ready: 99%+ accuracy enabled!")
+        print("✓ ML Engine ready")
     except Exception as e:
         print(f"⚠️ ML Engine init failed: {e}")
         hybrid_ml_engine = None
+
+    return hybrid_ml_engine
 
 
 def tokenize(text: str) -> List[str]:
@@ -209,9 +225,10 @@ def ai_predict_action(command_text: str, action_space: List[str]) -> Tuple[Optio
         return normalized_text, 1.0, [normalized_text]
 
     # Use Deep Learning engine if available (99%+ accuracy)
-    if hybrid_ml_engine and hybrid_ml_engine.dl_classifier.is_trained:
+    ml_engine = get_ml_engine()
+    if ml_engine and ml_engine.dl_classifier.is_trained:
         try:
-            predicted, confidence, suggestions = hybrid_ml_engine.predict_intent(normalized_text)
+            predicted, confidence, suggestions = ml_engine.predict_intent(normalized_text)
             if predicted in action_space:
                 return predicted, confidence, [s for s in suggestions if s in action_space][:3]
         except Exception as e:
@@ -622,9 +639,10 @@ def ai_suggest(payload):
             merged.append(item)
 
     # Add Generative AI smart suggestions if available
-    if query.strip() and hybrid_ml_engine:
+    ml_engine = get_ml_engine()
+    if query.strip() and ml_engine:
         try:
-            ai_suggestions = hybrid_ml_engine.generate_smart_suggestions(query)
+            ai_suggestions = ml_engine.generate_smart_suggestions(query)
             for item in ai_suggestions:
                 if item not in merged and len(merged) < 5:
                     merged.append(item)

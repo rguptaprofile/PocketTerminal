@@ -4,6 +4,7 @@ Replaces Naive Bayes with 99%+ accuracy neural network models
 """
 
 import json
+import os
 import re
 import numpy as np
 from pathlib import Path
@@ -12,10 +13,14 @@ from typing import Dict, List, Tuple, Optional
 
 try:
     import tensorflow as tf
-    from tensorflow import keras
-    from tensorflow.keras import layers, models
+    keras = tf.keras
+    layers = tf.keras.layers
+    models = tf.keras.models
     TF_AVAILABLE = True
 except ImportError:
+    keras = None
+    layers = None
+    models = None
     TF_AVAILABLE = False
 
 try:
@@ -79,7 +84,7 @@ class DeepIntentClassifier:
         self.intent_labels: List[str] = []
         self.is_trained = False
         
-    def build_model(self, vocab_size: int = 2000) -> models.Model:
+    def build_model(self, vocab_size: int = 2000):
         """Build LSTM-based neural network for intent classification"""
         if not TF_AVAILABLE:
             return None
@@ -191,7 +196,9 @@ class GenerativeAISuggestions:
         self.suggestion_cache: Dict[str, List[str]] = {}
         self.use_transformers = TRANSFORMERS_AVAILABLE
         self.generator = None
-        self._init_generator()
+        # Keep startup non-blocking; set POCKET_ENABLE_GENAI=1 to enable transformer generation.
+        if os.getenv("POCKET_ENABLE_GENAI", "0") == "1":
+            self._init_generator()
         
     def _init_generator(self):
         """Initialize generative model (GPT-2 variant for text generation)"""
