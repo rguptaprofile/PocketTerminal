@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POCKET TERMINAL : YOUR LAPTOP'S TERMINAL IN YOUR PHONE</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <main class="landing">
+    <section class="hero-card">
+      <p class="eyebrow">Your Laptop's Terminal In Your Phone</p>
+      <h1>POCKET TERMINAL</h1>
+      <p class="lead">Advanced remote control platform: Desktop command engine + Mobile voice remote with AI-powered intent recognition.</p>
+      <div class="cta-row">
+        <a class="btn" href="{{ url_for('desktop_page') }}">Open Desktop App</a>
+        <a class="btn btn-secondary" href="{{ url_for('mobile_page') }}">Open Mobile App</a>
+      </div>
+    </section>
+
+    <section class="feature-grid">
+      <article class="feature-card">
+        <h3>Live Pairing</h3>
+        <p>Instant code pairing with real-time dashboard activation.</p>
+      </article>
+      <article class="feature-card">
+        <h3>Voice + AI</h3>
+        <p>Natural command understanding with intelligent interpretation.</p>
+      </article>
+      <article class="feature-card">
+        <h3>Cross Workflow</h3>
+        <p>App, file, web and system operations from your mobile device.</p>
+      </article>
+    </section>
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="orb orb-c"></div>
+    <div class="grid-overlay"></div>
+    <div class="noise-overlay"></div>
+  </main>
+</body>
+</html>
