@@ -9,3 +9,4 @@ ssl/
 templates/
 __pycache__/
 .venv/
+.python-version
