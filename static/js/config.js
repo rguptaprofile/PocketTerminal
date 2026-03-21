@@ -2,6 +2,7 @@
 window.POCKET_CONFIG = (() => {
   const hostname = window.location.hostname;
   const isNetlify = hostname.includes("netlify.app");
+  const isVercel = hostname.includes("vercel.app");
   const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
   const params = new URLSearchParams(window.location.search || "");
   const queryBackend = (params.get("backend") || "").trim();
@@ -16,8 +17,8 @@ window.POCKET_CONFIG = (() => {
     backendUrl = savedBackend;
   }
 
-  // Production: keep backend on Netlify origin only.
-  if (isNetlify) {
+  // Production: keep backend on hosting origin only.
+  if (isNetlify || isVercel) {
     if (savedBackend.includes("onrender.com")) {
       localStorage.removeItem("pocket_backend_url");
     }
@@ -36,8 +37,8 @@ window.POCKET_CONFIG = (() => {
 
   return {
     BACKEND_URL: backendUrl,
-    IS_PRODUCTION: isNetlify,
+    IS_PRODUCTION: isNetlify || isVercel,
     IS_LOCAL_DEV: isLocalhost,
-    ENVIRONMENT: isNetlify ? "production" : isLocalhost ? "development" : "unknown",
+    ENVIRONMENT: isNetlify || isVercel ? "production" : isLocalhost ? "development" : "unknown",
   };
 })();
