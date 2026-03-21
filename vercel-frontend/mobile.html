@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POCKET TERMINAL - Mobile Voice Remote</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="mobile-body">
+  <main class="app-shell mobile-shell">
+    <header class="app-header">
+      <p class="eyebrow">POCKET TERMINAL - Mobile</p>
+      <h1>Voice Remote Control</h1>
+      <p class="lead">Voice, manual command aur AI assist ke saath desktop workflow control karein.</p>
+    </header>
+
+    <section class="panel" id="pairing-panel">
+      <p>Desktop app ka 6-digit code enter karein.</p>
+      <div class="inline-form">
+        <input id="pair-input" maxlength="6" placeholder="Enter pair code" />
+        <button id="pair-btn" class="btn">Pair</button>
+      </div>
+      <p class="status" id="mobile-status">Not paired</p>
+    </section>
+
+    <section class="panel dashboard hidden" id="mobile-dashboard">
+      <h2>Connected Dashboard: Pair Successful</h2>
+      <p class="connected-pill">Mobile <strong id="mobile-room"></strong> ke sath connected hai</p>
+
+      <div class="dashboard-grid">
+        <div class="voice-box panel panel-soft compact-panel">
+          <button id="start-voice-btn" class="btn">Start Voice Command</button>
+          <button id="mic-check-btn" class="btn btn-secondary">Check Mic Access</button>
+          <p class="hint">Try: open chrome, shutdown laptop, open website github.com, search web flask sockets, run ipconfig</p>
+          <p id="voice-troubleshoot" class="hint"></p>
+        </div>
+
+        <div class="control-box panel panel-soft compact-panel">
+          <label for="manual-command-input">Manual command</label>
+          <div class="inline-form">
+            <input id="manual-command-input" placeholder="type command here" />
+            <button id="manual-send-btn" class="btn btn-secondary">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel panel-soft">
+        <h3>AI Command Assist</h3>
+        <p class="hint" id="mobile-ai-summary">Type ya boliye command, AI best action suggest karega.</p>
+        <div id="mobile-suggestions" class="chips"></div>
+      </div>
+
+      <h3>Activity</h3>
+      <pre id="mobile-log" class="log-box"></pre>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
+  <script>
+    if (typeof io === "undefined") {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"><\\/script>');
+    }
+    if (typeof io === "undefined") {
+      document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\\/script>');
+    }
+  </script>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/mobile.js"></script>
+</body>
+</html>
