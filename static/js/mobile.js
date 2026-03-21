@@ -27,9 +27,24 @@ function makeSocketTargets(explicitBackend) {
   ];
 }
 
+function normalizeBackendInput(value) {
+  const v = (value || "").trim();
+  if (!v) {
+    return "";
+  }
+  if (v.startsWith("http://") || v.startsWith("https://")) {
+    return v;
+  }
+  if (/^\d{1,3}(\.\d{1,3}){3}(?::\d+)?$/.test(v)) {
+    return `http://${v.includes(":") ? v : `${v}:5000`}`;
+  }
+  return v;
+}
+
 const explicitBackend = resolveBackendUrl();
 const socketTargets = makeSocketTargets(explicitBackend);
 let socket = null;
+let backendPromptShown = false;
 
 const pairInput = document.getElementById("pair-input");
 const pairBtn = document.getElementById("pair-btn");
@@ -285,7 +300,20 @@ function connectMobileSocket(index) {
       connectMobileSocket(index + 1);
       return;
     }
-    statusEl.textContent = "Backend connect failed. Start local backend (python app.py) or pass ?backend=https://your-backend-url";
+    statusEl.textContent = "Backend connect failed. Enter laptop backend URL once (e.g. http://192.168.1.10:5000).";
+    if (!backendPromptShown) {
+      backendPromptShown = true;
+      const userInput = window.prompt("Backend URL enter karein (example: http://192.168.1.10:5000)");
+      const normalized = normalizeBackendInput(userInput);
+      if (normalized) {
+        try {
+          localStorage.setItem("pocket_backend_url", normalized);
+        } catch (_e) {
+          // ignore storage failures
+        }
+        window.location.reload();
+      }
+    }
   });
 
   socket.on("disconnect", () => {
