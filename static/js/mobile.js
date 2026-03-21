@@ -8,7 +8,9 @@ function resolveBackendUrl() {
     }
     const saved = (localStorage.getItem("pocket_backend_url") || "").trim();
     if (saved) {
-      return saved;
+      const normalizedSaved = normalizeBackendInput(saved);
+      localStorage.setItem("pocket_backend_url", normalizedSaved);
+      return normalizedSaved;
     }
   } catch (_e) {
     // ignore storage/query parsing issues

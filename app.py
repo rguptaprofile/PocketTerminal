@@ -5,6 +5,7 @@ import importlib
 import os
 import random
 import re
+import socket
 import shutil
 import subprocess
 import uuid
@@ -20,6 +21,7 @@ from flask_socketio import SocketIO, emit, join_room
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "pocket-terminal-your-laptops-terminal-in-your-phone"
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+RUNTIME_SCHEME = "https" if os.getenv("POCKET_SSL", "1") == "1" else "http"
 
 
 @dataclass
@@ -268,6 +270,27 @@ def personalized_suggestions(session: Optional[PairSession], action_space: List[
 
 def make_pair_code() -> str:
     return str(random.randint(100000, 999999))
+
+
+def detect_lan_ip() -> str:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            if ip:
+                return ip
+    except Exception:
+        pass
+    return "127.0.0.1"
+
+
+def build_mobile_backend_hint() -> str:
+    override = os.getenv("POCKET_PUBLIC_BACKEND_URL", "").strip()
+    if override:
+        return override
+
+    lan_ip = detect_lan_ip()
+    return f"{RUNTIME_SCHEME}://{lan_ip}:5000"
 
 
 def find_session_by_sid(sid: str) -> Optional[PairSession]:
@@ -538,6 +561,7 @@ def register_desktop(_payload=None):
         {
             "pairCode": pair_code,
             "roomId": session.room_id,
+            "backendUrlForMobile": build_mobile_backend_hint(),
             "supportedCommands": list(SUPPORTED_DESKTOP_ACTIONS.keys()) + DESKTOP_DYNAMIC_EXAMPLES,
         },
     )
@@ -747,8 +771,9 @@ def on_disconnect():
 
 
 if __name__ == "__main__":
-    # Default to HTTP for reliable desktop startup. Set POCKET_SSL=1 when HTTPS is needed.
-    use_ssl = os.getenv("POCKET_SSL", "0") == "1"
+    # Default to HTTPS to allow Netlify (HTTPS) frontend to connect without mixed-content blocking.
+    use_ssl = os.getenv("POCKET_SSL", "1") == "1"
+    RUNTIME_SCHEME = "https" if use_ssl else "http"
     try:
         socketio.run(
             app,
@@ -761,6 +786,7 @@ if __name__ == "__main__":
     except Exception as ex:
         if use_ssl:
             print(f"HTTPS startup failed ({ex}). Falling back to HTTP mode.")
+            RUNTIME_SCHEME = "http"
             socketio.run(
                 app,
                 host="0.0.0.0",

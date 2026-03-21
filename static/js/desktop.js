@@ -9,7 +9,9 @@ function resolveBackendUrl() {
     }
     const saved = (localStorage.getItem("pocket_backend_url") || "").trim();
     if (saved) {
-      return saved;
+      const normalizedSaved = normalizeBackendInput(saved);
+      localStorage.setItem("pocket_backend_url", normalizedSaved);
+      return normalizedSaved;
     }
   } catch (_e) {
     // ignore storage/query parsing issues
@@ -23,6 +25,8 @@ function makeSocketTargets(explicitBackend) {
   }
   return [
     window.location.origin,
+    "https://127.0.0.1:5000",
+    "https://localhost:5000",
     "http://127.0.0.1:5000",
     "http://localhost:5000",
   ];
@@ -34,6 +38,9 @@ function normalizeBackendInput(value) {
     return "";
   }
   if (v.startsWith("http://") || v.startsWith("https://")) {
+    if (window.location.protocol === "https:" && v.startsWith("http://")) {
+      return `https://${v.slice("http://".length)}`;
+    }
     return v;
   }
   if (/^\d{1,3}(\.\d{1,3}){3}(?::\d+)?$/.test(v)) {
@@ -46,6 +53,8 @@ function normalizeBackendInput(value) {
 const explicitBackend = resolveBackendUrl();
 const socketTargets = makeSocketTargets(explicitBackend);
 let socket = null;
+let connectedSocketTarget = explicitBackend || "";
+let mobileBackendHint = "";
 
 const pairCodeEl = document.getElementById("pair-code");
 const statusEl = document.getElementById("desktop-status");
@@ -62,7 +71,7 @@ const copyShareLinkBtn = document.getElementById("copy-share-link-btn");
 
 function buildMobilePairLink(pairCode) {
   const mobileBase = "https://pocketterminal.netlify.app/mobile";
-  const backendUrl = explicitBackend || window.location.origin;
+  const backendUrl = mobileBackendHint || connectedSocketTarget || explicitBackend || window.location.origin;
   const link = new URL(mobileBase);
   link.searchParams.set("backend", backendUrl);
   link.searchParams.set("code", pairCode);
@@ -101,13 +110,15 @@ function renderSuggestions(list) {
   });
 }
 
-function wireDesktopSocketHandlers() {
+function wireDesktopSocketHandlers(target) {
   socket.on("connect", () => {
+    connectedSocketTarget = target;
     emitEvent("register_desktop", {});
     statusEl.textContent = "Desktop connected to server. Generating pair code...";
   });
 
   socket.on("desktop_registered", (payload) => {
+    mobileBackendHint = (payload.backendUrlForMobile || "").trim();
     pairCodeEl.textContent = payload.pairCode;
     statusEl.textContent = "Pair code ready. Open mobile app and enter this code.";
     setShareLink(payload.pairCode);
@@ -172,7 +183,7 @@ function connectDesktopSocket(index) {
     timeout: 10000,
   });
 
-  wireDesktopSocketHandlers();
+  wireDesktopSocketHandlers(target);
 
   socket.on("connect_error", () => {
     if (!explicitBackend && index < socketTargets.length - 1) {
