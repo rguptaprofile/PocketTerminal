@@ -1,9 +1,19 @@
 function getConfiguredBackendUrl() {
   try {
     const value = window.POCKET_CONFIG && window.POCKET_CONFIG.BACKEND_URL;
-    return normalizeBackendInput((value || "").trim());
+    if (!value) return "";
+    const normalized = normalizeBackendInput(value.trim());
+    return normalized;
   } catch (_e) {
     return "";
+  }
+}
+
+function isNetlifiFrontend() {
+  try {
+    return window.location.hostname.includes("netlify.app");
+  } catch (_e) {
+    return false;
   }
 }
 

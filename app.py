@@ -27,7 +27,26 @@ from cryptography.x509.oid import NameOID
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "pocket-terminal-your-laptops-terminal-in-your-phone"
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+# Production CORS: allow Netlify frontend + any future hosted origins
+allowed_origins = [
+    "https://pocketterminal.netlify.app",
+    "http://pocketterminal.netlify.app",
+    "http://localhost:3000",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    "https://127.0.0.1:5000",
+]
+if os.getenv("POCKET_ENV") == "development":
+    allowed_origins.append("*")
+
+socketio = SocketIO(
+    app,
+    cors_allowed_origins=allowed_origins,
+    async_mode="threading",
+    ping_timeout=120,
+    ping_interval=60,
+)
 RUNTIME_SCHEME = "https" if os.getenv("POCKET_SSL", "1") == "1" else "http"
 
 
@@ -615,6 +634,16 @@ def health_page():
         "ok": True,
         "service": "pocket-terminal",
         "scheme": RUNTIME_SCHEME,
+        "sessions_active": len(rooms),
+        "environment": os.getenv("POCKET_ENV", "production"),
+    }
+
+
+@app.route("/version")
+def version_page():
+    return {
+        "version": "1.0.0",
+        "service": "POCKET TERMINAL - YOUR LAPTOP'S TERMINAL IN YOUR PHONE",
     }
 
 
@@ -846,29 +875,46 @@ def on_disconnect():
 
 
 if __name__ == "__main__":
-    # Default to HTTPS to allow Netlify (HTTPS) frontend to connect without mixed-content blocking.
-    use_ssl = os.getenv("POCKET_SSL", "1") == "1"
-    RUNTIME_SCHEME = "https" if use_ssl else "http"
+    env = os.getenv("POCKET_ENV", "production")
+    port = int(os.getenv("PORT", "5000"))
+    
+    print(f"\n{'='*60}")
+    print(f"🎯 POCKET TERMINAL - YOUR LAPTOP'S TERMINAL IN YOUR PHONE")
+    print(f"{'='*60}")
+    print(f"Environment: {env}")
+    print(f"Port: {port}")
+    print(f"Frontend: https://pocketterminal.netlify.app")
+    print(f"{'='*60}\n")
+    
+    # In production (Render), always use HTTP; nginx/proxy handles SSL.
+    # In development, attempt HTTPS with self-signed cert.
+    use_ssl = env == "development" and os.getenv("POCKET_SSL", "1") == "1"
     ssl_context = None
+    
     if use_ssl:
         ssl_context = ensure_persistent_ssl_cert() or "adhoc"
+        print(f"✓ SSL context configured")
+    
+    print(f"Allowed CORS origins: {', '.join(allowed_origins[:3])} ...")
+    
     try:
         socketio.run(
             app,
             host="0.0.0.0",
-            port=5000,
+            port=port,
             debug=False,
             use_reloader=False,
             ssl_context=ssl_context,
         )
     except Exception as ex:
+        print(f"⚠️ Startup error: {ex}")
         if use_ssl:
-            print(f"HTTPS startup failed ({ex}). Falling back to HTTP mode.")
+            print(f"Falling back to HTTP mode...")
             RUNTIME_SCHEME = "http"
             socketio.run(
                 app,
                 host="0.0.0.0",
-                port=5000,
+                port=port,
                 debug=False,
                 use_reloader=False,
                 ssl_context=None,
