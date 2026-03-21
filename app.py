@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import importlib
 import os
 import random
 import re
@@ -15,14 +16,6 @@ from urllib.parse import quote_plus
 
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, join_room
-
-# Deep Learning & Generative AI Engine (99%+ Accuracy)
-try:
-    from ml_models import get_hybrid_engine, HybridIntentEngine
-    ML_AVAILABLE = True
-except ImportError:
-    ML_AVAILABLE = False
-    print("⚠️ ML models not available, using legacy Naive Bayes fallback")
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "pocket-terminal-your-laptops-terminal-in-your-phone"
@@ -149,15 +142,12 @@ WORKFLOW_INTENT_HINTS = {
 }
 
 # Lazy ML initialization keeps server startup fast and button actions responsive.
-hybrid_ml_engine: Optional[HybridIntentEngine] = None
+hybrid_ml_engine = None
 ML_INIT_ATTEMPTED = False
 
 
-def get_ml_engine() -> Optional[HybridIntentEngine]:
+def get_ml_engine() -> Optional[object]:
     global hybrid_ml_engine, ML_INIT_ATTEMPTED
-    if not ML_AVAILABLE:
-        return None
-
     # Disabled by default to avoid heavy startup (TensorFlow + model warmup).
     if os.getenv("POCKET_ENABLE_ML", "0") != "1":
         return None
@@ -167,11 +157,15 @@ def get_ml_engine() -> Optional[HybridIntentEngine]:
 
     ML_INIT_ATTEMPTED = True
     try:
+        ml_module = importlib.import_module("ml_models")
+        get_hybrid_engine = getattr(ml_module, "get_hybrid_engine", None)
+        if not callable(get_hybrid_engine):
+            return None
         hybrid_ml_engine = get_hybrid_engine()
         hybrid_ml_engine.initialize_with_commands(ACTION_TRAINING_PHRASES, WORKFLOW_INTENT_HINTS)
         print("✓ ML Engine ready")
     except Exception as e:
-        print(f"⚠️ ML Engine init failed: {e}")
+        print(f"⚠️ ML Engine unavailable: {e}")
         hybrid_ml_engine = None
 
     return hybrid_ml_engine
@@ -753,8 +747,8 @@ def on_disconnect():
 
 
 if __name__ == "__main__":
-    # Voice APIs on mobile require HTTPS secure context in most browsers.
-    use_ssl = os.getenv("POCKET_SSL", "1") == "1"
+    # Default to HTTP for reliable desktop startup. Set POCKET_SSL=1 when HTTPS is needed.
+    use_ssl = os.getenv("POCKET_SSL", "0") == "1"
     try:
         socketio.run(
             app,
