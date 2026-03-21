@@ -216,7 +216,7 @@ function connectDesktopSocket(index) {
   wireDesktopSocketHandlers(target);
 
   socket.on("connect_error", () => {
-    if (index < socketTargets.length - 1) {
+    if (!explicitBackend && index < socketTargets.length - 1) {
       appendLog(`Backend connect failed on ${target}, trying next...`);
       try {
         socket.close();

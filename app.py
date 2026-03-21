@@ -883,7 +883,7 @@ if __name__ == "__main__":
     print(f"{'='*60}")
     print(f"Environment: {env}")
     print(f"Port: {port}")
-    print(f"Frontend: https://pocketterminal.netlify.app")
+    print(f"Frontend:https://pocket-terminal.vercel.app/")
     print(f"{'='*60}\n")
     
     # In production (Render), always use HTTP; nginx/proxy handles SSL.
