@@ -8,7 +8,7 @@ window.POCKET_CONFIG = (() => {
 
   // Production: Netlify frontend uses Render backend
   if (isNetlify) {
-    backendUrl = "https://pocketterminal-api.onrender.com"; // ← Your Render URL
+      backendUrl = window.location.origin;
   }
   // Development: localhost uses local backend
   else if (isLocalhost) {
