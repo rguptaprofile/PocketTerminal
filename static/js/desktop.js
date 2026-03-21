@@ -1,4 +1,25 @@
-const socket = typeof io === "function" ? io() : null;
+function resolveBackendUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const fromQuery = (params.get("backend") || "").trim();
+    if (fromQuery) {
+      localStorage.setItem("pocket_backend_url", fromQuery);
+      return fromQuery;
+    }
+    const saved = (localStorage.getItem("pocket_backend_url") || "").trim();
+    if (saved) {
+      return saved;
+    }
+  } catch (_e) {
+    // ignore storage/query parsing issues
+  }
+  return "";
+}
+
+const backendUrl = resolveBackendUrl();
+const socket = typeof io === "function"
+  ? io(backendUrl || undefined, { transports: ["websocket", "polling"], timeout: 10000 })
+  : null;
 
 const pairCodeEl = document.getElementById("pair-code");
 const statusEl = document.getElementById("desktop-status");
@@ -45,6 +66,14 @@ if (!socket) {
   socket.on("connect", () => {
     emitEvent("register_desktop", {});
     statusEl.textContent = "Desktop connected to server. Generating pair code...";
+  });
+
+  socket.on("connect_error", () => {
+    statusEl.textContent = "Backend connect failed. Use Desktop URL like: /desktop?backend=https://your-backend-url";
+  });
+
+  socket.on("disconnect", () => {
+    statusEl.textContent = "Disconnected from backend. Retrying...";
   });
 
   socket.on("desktop_registered", (payload) => {

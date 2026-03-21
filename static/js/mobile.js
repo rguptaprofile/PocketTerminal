@@ -1,4 +1,25 @@
-const socket = typeof io === "function" ? io() : null;
+function resolveBackendUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const fromQuery = (params.get("backend") || "").trim();
+    if (fromQuery) {
+      localStorage.setItem("pocket_backend_url", fromQuery);
+      return fromQuery;
+    }
+    const saved = (localStorage.getItem("pocket_backend_url") || "").trim();
+    if (saved) {
+      return saved;
+    }
+  } catch (_e) {
+    // ignore storage/query parsing issues
+  }
+  return "";
+}
+
+const backendUrl = resolveBackendUrl();
+const socket = typeof io === "function"
+  ? io(backendUrl || undefined, { transports: ["websocket", "polling"], timeout: 10000 })
+  : null;
 
 const pairInput = document.getElementById("pair-input");
 const pairBtn = document.getElementById("pair-btn");
@@ -147,6 +168,14 @@ if (!socket) {
   micCheckBtn.disabled = true;
   appendLog("Socket.IO client load failed.");
 } else {
+  socket.on("connect_error", () => {
+    statusEl.textContent = "Backend connect failed. Open Mobile URL like: /mobile?backend=https://your-backend-url";
+  });
+
+  socket.on("disconnect", () => {
+    statusEl.textContent = "Disconnected from backend. Retrying...";
+  });
+
   socket.on("paired_success", (payload) => {
     dashboardEl.classList.remove("hidden");
     roomEl.textContent = payload.roomId;
