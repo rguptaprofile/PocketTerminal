@@ -68,6 +68,39 @@ function renderSuggestions(list) {
   });
 }
 
+function normalizeUrl(target) {
+  const trimmed = (target || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
+function openMobileApp(target) {
+  const t = (target || "").trim().toLowerCase();
+  const appUrlMap = {
+    whatsapp: "whatsapp://send",
+    telegram: "tg://",
+    instagram: "instagram://app",
+    facebook: "fb://",
+    youtube: "vnd.youtube://",
+    gmail: "googlegmail://",
+    maps: "geo:0,0?q=",
+    chrome: "https://www.google.com",
+  };
+
+  if (appUrlMap[t]) {
+    window.open(appUrlMap[t], "_self");
+    appendLog(`Tried opening mobile app: ${t}`);
+    return true;
+  }
+
+  return false;
+}
+
 async function requestMicPermission() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     troubleshootEl.textContent = "Browser me mic API available nahi hai.";
@@ -157,6 +190,32 @@ if (!socket) {
       window.open("https://github.com", "_blank");
     } else if (cmd === "open youtube") {
       window.open("https://youtube.com", "_blank");
+    } else if (cmd.startsWith("open website ") || cmd.startsWith("open url ")) {
+      const target = cmd.replace(/^open website\s+|^open url\s+/, "").trim();
+      const url = normalizeUrl(target);
+      if (url) {
+        window.open(url, "_blank");
+      }
+    } else if (cmd.startsWith("open app ") || cmd.startsWith("launch app ") || cmd.startsWith("start app ")) {
+      const appTarget = cmd.replace(/^open app\s+|^launch app\s+|^start app\s+/, "").trim();
+      if (!openMobileApp(appTarget)) {
+        appendLog(`App open not supported by browser sandbox: ${appTarget}`);
+      }
+    } else if (cmd.startsWith("open ")) {
+      const target = cmd.replace(/^open\s+/, "").trim();
+      if (target.includes(".") || target.includes("://")) {
+        const url = normalizeUrl(target);
+        if (url) {
+          window.open(url, "_blank");
+        }
+      } else if (!openMobileApp(target)) {
+        appendLog(`Generic open request received: ${target}`);
+      }
+    } else if (cmd === "close tab" || cmd === "close current tab" || cmd === "close browser") {
+      window.close();
+      appendLog("Browser may block close tab unless tab was opened by script.");
+    } else if (cmd.startsWith("close ") || cmd.startsWith("terminate ") || cmd.startsWith("stop ")) {
+      appendLog("Mobile OS security blocks closing other apps from browser automation.");
     } else if (cmd === "vibrate" && "vibrate" in navigator) {
       navigator.vibrate(300);
     } else if (cmd === "say hello" && "speechSynthesis" in window) {

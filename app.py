@@ -56,6 +56,10 @@ SUPPORTED_DESKTOP_ACTIONS = {
 DESKTOP_DYNAMIC_EXAMPLES = [
     "open vscode",
     "open whatsapp",
+    "open file explorer",
+    "close explorer",
+    "close chrome",
+    "close notepad",
     "shutdown laptop",
     "restart laptop",
     "search web python flask socketio",
@@ -335,7 +339,8 @@ def _execute_shell_command(cmd: str) -> str:
 
 
 def run_dynamic_desktop_workflow(command_text: str) -> str:
-    raw = command_text.strip()
+    # Normalize separators so inputs like "open_file explorer" also work.
+    raw = re.sub(r"[_]+", " ", command_text.strip())
     lowered = raw.lower()
 
     try:
@@ -351,16 +356,69 @@ def run_dynamic_desktop_workflow(command_text: str) -> str:
             subprocess.Popen(["rundll32.exe", "user32.dll,LockWorkStation"], shell=False)
             return "Executed desktop workflow: screen locked."
 
+        if lowered in {"open file explorer", "open explorer", "file explorer", "explorer"}:
+            subprocess.Popen(["explorer"], shell=False)
+            return "Executed desktop workflow: opened File Explorer."
+
+        if lowered in {"close", "close app", "close window", "close current window"}:
+            return "Close command ambiguous. Try: close notepad / close chrome / close explorer."
+
+        close_target = _extract_after_prefix(
+            lowered,
+            ["close file explorer", "close explorer", "close app", "close ", "terminate ", "stop "],
+        )
+        if close_target or lowered in {"close explorer", "close file explorer"}:
+            target = close_target or "explorer"
+            target = target.strip()
+
+            process_map = {
+                "explorer": "explorer.exe",
+                "file explorer": "explorer.exe",
+                "notepad": "notepad.exe",
+                "chrome": "chrome.exe",
+                "cmd": "cmd.exe",
+                "command prompt": "cmd.exe",
+            }
+
+            proc = process_map.get(target)
+            if not proc:
+                # Generic fallback: close <appname> => taskkill /IM appname.exe
+                clean = re.sub(r"[^a-z0-9._-]", "", target.lower())
+                if not clean:
+                    return "Unsupported close target. Try close explorer/notepad/chrome/cmd."
+                proc = clean if clean.endswith(".exe") else f"{clean}.exe"
+
+            killed = subprocess.run(
+                ["taskkill", "/IM", proc, "/F"],
+                capture_output=True,
+                text=True,
+                shell=False,
+            )
+            if killed.returncode == 0:
+                return f"Executed desktop workflow: closed {target}."
+
+            err = (killed.stderr or killed.stdout or "process not running").strip()
+            return f"Close failed for {target}: {err[:250]}"
+
+        # Direct path open support, e.g. "C:/Users/..." or "D:\\Work"
+        if os.path.exists(raw):
+            os.startfile(raw)
+            return f"Executed desktop workflow: opened path {raw}."
+
         # Check file/folder BEFORE generic "open" to avoid conflicts
         file_target = _extract_after_prefix(raw, ["open file", "file open", "openfile"])
-        if file_target and os.path.isfile(file_target):
-            os.startfile(file_target)
-            return f"Executed desktop workflow: opened file {file_target}."
+        if file_target:
+            if os.path.isfile(file_target):
+                os.startfile(file_target)
+                return f"Executed desktop workflow: opened file {file_target}."
+            return f"File not found: {file_target}"
 
         folder_target = _extract_after_prefix(raw, ["open folder", "folder open"])
-        if folder_target and os.path.isdir(folder_target):
-            os.startfile(folder_target)
-            return f"Executed desktop workflow: opened folder {folder_target}."
+        if folder_target:
+            if os.path.isdir(folder_target):
+                os.startfile(folder_target)
+                return f"Executed desktop workflow: opened folder {folder_target}."
+            return f"Folder not found: {folder_target}"
 
         web_query = _extract_after_prefix(lowered, ["search web", "google", "search "])
         if web_query:
@@ -374,8 +432,8 @@ def run_dynamic_desktop_workflow(command_text: str) -> str:
             subprocess.Popen(["cmd", "/c", "start", "", target], shell=False)
             return f"Executed desktop workflow: opened website {target}."
 
-        app_target = _extract_after_prefix(lowered, ["open app", "launch app", "start app"])
-        if app_target:
+        app_target = _extract_after_prefix(lowered, ["open app", "launch app", "start app", "open "])
+        if app_target and not app_target.startswith(("website", "url", "file", "folder")):
             subprocess.Popen(["cmd", "/c", "start", "", app_target], shell=False)
             return f"Executed desktop workflow: opened app {app_target}."
 
@@ -419,9 +477,9 @@ def run_dynamic_desktop_workflow(command_text: str) -> str:
 
 def run_mobile_action(command_text: str) -> str:
     mapped = SUPPORTED_MOBILE_ACTIONS.get(command_text)
-    if not mapped:
-        return f"Unsupported mobile action: {command_text}"
-    return f"Forwarded mobile action: {mapped}"
+    if mapped:
+        return f"Forwarded mobile action: {mapped}"
+    return f"Forwarded mobile action: {command_text}"
 
 
 def ai_predict_workflow(command_text: str) -> Tuple[Optional[str], float, List[str]]:
