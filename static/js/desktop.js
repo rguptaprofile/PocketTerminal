@@ -36,7 +36,8 @@ function normalizeBackendInput(value) {
     return v;
   }
   if (/^\d{1,3}(\.\d{1,3}){3}(?::\d+)?$/.test(v)) {
-    return `http://${v.includes(":") ? v : `${v}:5000`}`;
+    const scheme = window.location.protocol === "https:" ? "https" : "http";
+    return `${scheme}://${v.includes(":") ? v : `${v}:5000`}`;
   }
   return v;
 }
@@ -165,10 +166,10 @@ function connectDesktopSocket(index) {
       connectDesktopSocket(index + 1);
       return;
     }
-    statusEl.textContent = "Backend connect failed. Enter laptop backend URL once (e.g. http://192.168.1.10:5000).";
+    statusEl.textContent = "Backend connect failed. Netlify HTTPS page cannot call HTTP backend. Use HTTPS backend URL (e.g. https://192.168.1.10:5000 or tunnel URL).";
     if (!backendPromptShown) {
       backendPromptShown = true;
-      const userInput = window.prompt("Backend URL enter karein (example: http://192.168.1.10:5000)");
+      const userInput = window.prompt("Backend HTTPS URL enter karein (example: https://192.168.1.10:5000)");
       const normalized = normalizeBackendInput(userInput);
       if (normalized) {
         try {
