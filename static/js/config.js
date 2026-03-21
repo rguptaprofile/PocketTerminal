@@ -3,22 +3,35 @@ window.POCKET_CONFIG = (() => {
   const hostname = window.location.hostname;
   const isNetlify = hostname.includes("netlify.app");
   const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+  const params = new URLSearchParams(window.location.search || "");
+  const queryBackend = (params.get("backend") || "").trim();
+  const savedBackend = (localStorage.getItem("pocket_backend_url") || "").trim();
 
   let backendUrl = "";
 
-  // Production: Netlify frontend uses Render backend
+  // Priority: query override -> saved override -> default hosted backend
+  if (queryBackend) {
+    backendUrl = queryBackend;
+  } else if (savedBackend) {
+    backendUrl = savedBackend;
+  }
+
+  // Production: keep backend on Netlify origin only.
   if (isNetlify) {
-      backendUrl = window.location.origin;
+    if (savedBackend.includes("onrender.com")) {
+      localStorage.removeItem("pocket_backend_url");
+    }
+    backendUrl = window.location.origin;
   }
   // Development: localhost uses local backend
   else if (isLocalhost) {
     const scheme = window.location.protocol === "https:" ? "https" : "http";
-    backendUrl = `${scheme}://${hostname}:5000`;
+    backendUrl = backendUrl || `${scheme}://${hostname}:5000`;
   }
   // Other web hosts: try same origin + port 5000
   else {
     const scheme = window.location.protocol === "https:" ? "https" : "http";
-    backendUrl = `${scheme}://${hostname}:5000`;
+    backendUrl = backendUrl || `${scheme}://${hostname}:5000`;
   }
 
   return {
