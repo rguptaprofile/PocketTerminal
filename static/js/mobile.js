@@ -19,14 +19,15 @@ function resolveBackendUrl() {
 }
 
 function makeSocketTargets(explicitBackend) {
-  if (explicitBackend) {
-    return [explicitBackend];
-  }
-  return [
+  const defaults = [
     window.location.origin,
+    "https://127.0.0.1:5000",
+    "https://localhost:5000",
     "http://127.0.0.1:5000",
     "http://localhost:5000",
   ];
+  const targets = explicitBackend ? [explicitBackend, ...defaults] : defaults;
+  return [...new Set(targets.filter(Boolean))];
 }
 
 function normalizeBackendInput(value) {

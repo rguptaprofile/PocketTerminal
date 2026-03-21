@@ -9,6 +9,9 @@ import socket
 import shutil
 import subprocess
 import uuid
+from datetime import datetime, timedelta, timezone
+from ipaddress import ip_address
+from pathlib import Path
 from collections import Counter
 from dataclasses import dataclass, field
 from threading import Lock
@@ -17,6 +20,10 @@ from urllib.parse import quote_plus
 
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, join_room
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "pocket-terminal-your-laptops-terminal-in-your-phone"
@@ -293,6 +300,65 @@ def build_mobile_backend_hint() -> str:
     return f"{RUNTIME_SCHEME}://{lan_ip}:5000"
 
 
+def ensure_persistent_ssl_cert() -> Optional[Tuple[str, str]]:
+    cert_dir = Path("ssl")
+    cert_file = cert_dir / "pocketterminal.crt"
+    key_file = cert_dir / "pocketterminal.key"
+
+    if cert_file.exists() and key_file.exists():
+        return str(cert_file), str(key_file)
+
+    try:
+        cert_dir.mkdir(parents=True, exist_ok=True)
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = issuer = x509.Name(
+            [
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "IN"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Pocket Terminal"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "Pocket Terminal Local"),
+            ]
+        )
+
+        lan_ip = detect_lan_ip()
+        alt_names = [
+            x509.DNSName("localhost"),
+            x509.DNSName("127.0.0.1"),
+            x509.IPAddress(ip_address("127.0.0.1")),
+        ]
+
+        try:
+            alt_names.append(x509.IPAddress(ip_address(lan_ip)))
+        except Exception:
+            pass
+
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.now(timezone.utc) - timedelta(minutes=5))
+            .not_valid_after(datetime.now(timezone.utc) + timedelta(days=3650))
+            .add_extension(x509.SubjectAlternativeName(alt_names), critical=False)
+            .sign(private_key=key, algorithm=hashes.SHA256())
+        )
+
+        key_file.write_bytes(
+            key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
+        cert_file.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+        print(f"✓ Generated persistent SSL cert at {cert_file}")
+        return str(cert_file), str(key_file)
+    except Exception as ex:
+        print(f"⚠️ Could not create persistent SSL cert: {ex}")
+        return None
+
+
 def find_session_by_sid(sid: str) -> Optional[PairSession]:
     room_id = sid_to_room.get(sid)
     if not room_id:
@@ -543,6 +609,15 @@ def mobile_page():
     return render_template("mobile.html")
 
 
+@app.route("/health")
+def health_page():
+    return {
+        "ok": True,
+        "service": "pocket-terminal",
+        "scheme": RUNTIME_SCHEME,
+    }
+
+
 @socketio.on("register_desktop")
 def register_desktop(_payload=None):
     with lock:
@@ -774,6 +849,9 @@ if __name__ == "__main__":
     # Default to HTTPS to allow Netlify (HTTPS) frontend to connect without mixed-content blocking.
     use_ssl = os.getenv("POCKET_SSL", "1") == "1"
     RUNTIME_SCHEME = "https" if use_ssl else "http"
+    ssl_context = None
+    if use_ssl:
+        ssl_context = ensure_persistent_ssl_cert() or "adhoc"
     try:
         socketio.run(
             app,
@@ -781,7 +859,7 @@ if __name__ == "__main__":
             port=5000,
             debug=False,
             use_reloader=False,
-            ssl_context="adhoc" if use_ssl else None,
+            ssl_context=ssl_context,
         )
     except Exception as ex:
         if use_ssl:
