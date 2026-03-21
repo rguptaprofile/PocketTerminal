@@ -16,10 +16,20 @@ function resolveBackendUrl() {
   return "";
 }
 
-const backendUrl = resolveBackendUrl();
-const socket = typeof io === "function"
-  ? io(backendUrl || undefined, { transports: ["websocket", "polling"], timeout: 10000 })
-  : null;
+function makeSocketTargets(explicitBackend) {
+  if (explicitBackend) {
+    return [explicitBackend];
+  }
+  return [
+    window.location.origin,
+    "http://127.0.0.1:5000",
+    "http://localhost:5000",
+  ];
+}
+
+const explicitBackend = resolveBackendUrl();
+const socketTargets = makeSocketTargets(explicitBackend);
+let socket = null;
 
 const pairInput = document.getElementById("pair-input");
 const pairBtn = document.getElementById("pair-btn");
@@ -160,22 +170,7 @@ pairBtn.addEventListener("click", () => {
   statusEl.textContent = "Pairing request sent...";
 });
 
-if (!socket) {
-  statusEl.textContent = "Socket library load nahi hui. Internet check karein aur page reload karein.";
-  pairBtn.disabled = true;
-  manualSendBtn.disabled = true;
-  startVoiceBtn.disabled = true;
-  micCheckBtn.disabled = true;
-  appendLog("Socket.IO client load failed.");
-} else {
-  socket.on("connect_error", () => {
-    statusEl.textContent = "Backend connect failed. Open Mobile URL like: /mobile?backend=https://your-backend-url";
-  });
-
-  socket.on("disconnect", () => {
-    statusEl.textContent = "Disconnected from backend. Retrying...";
-  });
-
+function wireMobileSocketHandlers() {
   socket.on("paired_success", (payload) => {
     dashboardEl.classList.remove("hidden");
     roomEl.textContent = payload.roomId;
@@ -264,6 +259,49 @@ if (!socket) {
     statusEl.textContent = payload.message;
     appendLog(payload.message);
   });
+}
+
+function connectMobileSocket(index) {
+  if (typeof io !== "function") {
+    return false;
+  }
+
+  const target = socketTargets[index];
+  socket = io(target, {
+    transports: ["websocket", "polling"],
+    timeout: 10000,
+  });
+
+  wireMobileSocketHandlers();
+
+  socket.on("connect_error", () => {
+    if (!explicitBackend && index < socketTargets.length - 1) {
+      appendLog(`Backend connect failed on ${target}, trying next...`);
+      try {
+        socket.close();
+      } catch (_e) {
+        // ignore close errors
+      }
+      connectMobileSocket(index + 1);
+      return;
+    }
+    statusEl.textContent = "Backend connect failed. Start local backend (python app.py) or pass ?backend=https://your-backend-url";
+  });
+
+  socket.on("disconnect", () => {
+    statusEl.textContent = "Disconnected from backend. Retrying...";
+  });
+
+  return true;
+}
+
+if (!connectMobileSocket(0)) {
+  statusEl.textContent = "Socket library load nahi hui. Internet check karein aur page reload karein.";
+  pairBtn.disabled = true;
+  manualSendBtn.disabled = true;
+  startVoiceBtn.disabled = true;
+  micCheckBtn.disabled = true;
+  appendLog("Socket.IO client load failed.");
 }
 
 manualSendBtn.addEventListener("click", () => {

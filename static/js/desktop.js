@@ -16,10 +16,20 @@ function resolveBackendUrl() {
   return "";
 }
 
-const backendUrl = resolveBackendUrl();
-const socket = typeof io === "function"
-  ? io(backendUrl || undefined, { transports: ["websocket", "polling"], timeout: 10000 })
-  : null;
+function makeSocketTargets(explicitBackend) {
+  if (explicitBackend) {
+    return [explicitBackend];
+  }
+  return [
+    window.location.origin,
+    "http://127.0.0.1:5000",
+    "http://localhost:5000",
+  ];
+}
+
+const explicitBackend = resolveBackendUrl();
+const socketTargets = makeSocketTargets(explicitBackend);
+let socket = null;
 
 const pairCodeEl = document.getElementById("pair-code");
 const statusEl = document.getElementById("desktop-status");
@@ -57,23 +67,10 @@ function renderSuggestions(list) {
   });
 }
 
-if (!socket) {
-  statusEl.textContent = "Socket library load nahi hui. Internet check karein aur page reload karein.";
-  sendBtn.disabled = true;
-  commandInput.disabled = true;
-  appendLog("Socket.IO client load failed.");
-} else {
+function wireDesktopSocketHandlers() {
   socket.on("connect", () => {
     emitEvent("register_desktop", {});
     statusEl.textContent = "Desktop connected to server. Generating pair code...";
-  });
-
-  socket.on("connect_error", () => {
-    statusEl.textContent = "Backend connect failed. Use Desktop URL like: /desktop?backend=https://your-backend-url";
-  });
-
-  socket.on("disconnect", () => {
-    statusEl.textContent = "Disconnected from backend. Retrying...";
   });
 
   socket.on("desktop_registered", (payload) => {
@@ -127,6 +124,47 @@ if (!socket) {
     }
     renderSuggestions(payload.suggestions || []);
   });
+}
+
+function connectDesktopSocket(index) {
+  if (typeof io !== "function") {
+    return false;
+  }
+
+  const target = socketTargets[index];
+  socket = io(target, {
+    transports: ["websocket", "polling"],
+    timeout: 10000,
+  });
+
+  wireDesktopSocketHandlers();
+
+  socket.on("connect_error", () => {
+    if (!explicitBackend && index < socketTargets.length - 1) {
+      appendLog(`Backend connect failed on ${target}, trying next...`);
+      try {
+        socket.close();
+      } catch (_e) {
+        // ignore close errors
+      }
+      connectDesktopSocket(index + 1);
+      return;
+    }
+    statusEl.textContent = "Backend connect failed. Start local backend (python app.py) or pass ?backend=https://your-backend-url";
+  });
+
+  socket.on("disconnect", () => {
+    statusEl.textContent = "Disconnected from backend. Retrying...";
+  });
+
+  return true;
+}
+
+if (!connectDesktopSocket(0)) {
+  statusEl.textContent = "Socket library load nahi hui. Internet check karein aur page reload karein.";
+  sendBtn.disabled = true;
+  commandInput.disabled = true;
+  appendLog("Socket.IO client load failed.");
 }
 
 sendBtn.addEventListener("click", () => {
