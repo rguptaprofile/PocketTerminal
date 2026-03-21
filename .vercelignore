@@ -1,0 +1,11 @@
+# Exclude Python backend files from Vercel static deployment
+app.py
+requirements.txt
+requirements-ml.txt
+render.yaml
+Procfile
+ml_models.py
+ssl/
+templates/
+__pycache__/
+.venv/
