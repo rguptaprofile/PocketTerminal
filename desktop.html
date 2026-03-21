@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POCKET TERMINAL - Desktop Controller</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="desktop-body">
+  <main class="app-shell desktop-shell">
+    <header class="app-header">
+      <p class="eyebrow">POCKET TERMINAL - Desktop</p>
+      <h1>Desktop Command Engine</h1>
+      <p class="lead">Pair code generate karein, mobile connect hone par live command dashboard unlock hoga.</p>
+    </header>
+
+    <section class="panel">
+      <p>Is code ko mobile app me daal ke pairing complete karein.</p>
+      <div class="pair-code-wrap">
+        <span id="pair-code" class="pair-code">------</span>
+      </div>
+      <p class="status" id="desktop-status">Waiting for mobile pairing...</p>
+      <h3>Supported Desktop Voice Commands</h3>
+      <ul id="desktop-commands" class="command-list"></ul>
+    </section>
+
+    <section class="panel dashboard hidden" id="desktop-dashboard">
+      <h2>Connected Dashboard: Pair Successful</h2>
+      <p class="connected-pill">Desktop <strong id="desktop-room"></strong> ke sath connected hai</p>
+
+      <div class="dashboard-grid">
+        <div class="control-box panel panel-soft compact-panel">
+          <label for="desktop-command-input">Desktop se mobile ko command bhejein</label>
+          <div class="inline-form">
+            <input id="desktop-command-input" placeholder="e.g. open github" />
+            <button id="desktop-send-btn" class="btn">Send</button>
+          </div>
+          <div id="desktop-suggestions" class="chips"></div>
+        </div>
+
+        <div class="panel panel-soft compact-panel">
+          <h3>AI Insight</h3>
+          <p id="desktop-ai-summary" class="hint">AI interpretation yahan dikhega.</p>
+        </div>
+      </div>
+
+      <h3>Activity</h3>
+      <pre id="desktop-log" class="log-box"></pre>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
+  <script>
+    if (typeof io === "undefined") {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"><\\/script>');
+    }
+    if (typeof io === "undefined") {
+      document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\\/script>');
+    }
+  </script>
+  <script src="/static/js/desktop.js"></script>
+</body>
+</html>
