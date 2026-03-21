@@ -357,7 +357,7 @@ function connectMobileSocket(index) {
   wireMobileSocketHandlers();
 
   socket.on("connect_error", () => {
-    if (!explicitBackend && index < socketTargets.length - 1) {
+    if (index < socketTargets.length - 1) {
       appendLog(`Backend connect failed on ${target}, trying next...`);
       try {
         socket.close();
