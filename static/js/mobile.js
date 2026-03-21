@@ -1,3 +1,12 @@
+function getConfiguredBackendUrl() {
+  try {
+    const value = window.POCKET_CONFIG && window.POCKET_CONFIG.BACKEND_URL;
+    return normalizeBackendInput((value || "").trim());
+  } catch (_e) {
+    return "";
+  }
+}
+
 function resolveBackendUrl() {
   try {
     const params = new URLSearchParams(window.location.search || "");
@@ -6,6 +15,13 @@ function resolveBackendUrl() {
       localStorage.setItem("pocket_backend_url", fromQuery);
       return fromQuery;
     }
+
+    const configured = getConfiguredBackendUrl();
+    if (configured) {
+      localStorage.setItem("pocket_backend_url", configured);
+      return configured;
+    }
+
     const saved = (localStorage.getItem("pocket_backend_url") || "").trim();
     if (saved) {
       const normalizedSaved = normalizeBackendInput(saved);
@@ -19,12 +35,17 @@ function resolveBackendUrl() {
 }
 
 function makeSocketTargets(explicitBackend) {
+  const isLocalPage = ["localhost", "127.0.0.1"].includes(window.location.hostname);
   const defaults = [
     window.location.origin,
-    "https://127.0.0.1:5000",
-    "https://localhost:5000",
-    "http://127.0.0.1:5000",
-    "http://localhost:5000",
+    ...(isLocalPage
+      ? [
+          "https://127.0.0.1:5000",
+          "https://localhost:5000",
+          "http://127.0.0.1:5000",
+          "http://localhost:5000",
+        ]
+      : []),
   ];
   const targets = explicitBackend ? [explicitBackend, ...defaults] : defaults;
   return [...new Set(targets.filter(Boolean))];
