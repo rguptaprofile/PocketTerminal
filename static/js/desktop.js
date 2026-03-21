@@ -3,8 +3,9 @@ function resolveBackendUrl() {
     const params = new URLSearchParams(window.location.search || "");
     const fromQuery = (params.get("backend") || "").trim();
     if (fromQuery) {
-      localStorage.setItem("pocket_backend_url", fromQuery);
-      return fromQuery;
+      const normalized = normalizeBackendInput(fromQuery);
+      localStorage.setItem("pocket_backend_url", normalized);
+      return normalized;
     }
     const saved = (localStorage.getItem("pocket_backend_url") || "").trim();
     if (saved) {
@@ -45,7 +46,6 @@ function normalizeBackendInput(value) {
 const explicitBackend = resolveBackendUrl();
 const socketTargets = makeSocketTargets(explicitBackend);
 let socket = null;
-let backendPromptShown = false;
 
 const pairCodeEl = document.getElementById("pair-code");
 const statusEl = document.getElementById("desktop-status");
@@ -57,6 +57,24 @@ const sendBtn = document.getElementById("desktop-send-btn");
 const commandInput = document.getElementById("desktop-command-input");
 const suggestionsEl = document.getElementById("desktop-suggestions");
 const aiSummaryEl = document.getElementById("desktop-ai-summary");
+const mobileShareLinkEl = document.getElementById("mobile-share-link");
+const copyShareLinkBtn = document.getElementById("copy-share-link-btn");
+
+function buildMobilePairLink(pairCode) {
+  const mobileBase = "https://pocketterminal.netlify.app/mobile";
+  const backendUrl = explicitBackend || window.location.origin;
+  const link = new URL(mobileBase);
+  link.searchParams.set("backend", backendUrl);
+  link.searchParams.set("code", pairCode);
+  return link.toString();
+}
+
+function setShareLink(pairCode) {
+  if (!mobileShareLinkEl) {
+    return;
+  }
+  mobileShareLinkEl.value = buildMobilePairLink(pairCode);
+}
 
 function emitEvent(eventName, payload) {
   if (!socket) {
@@ -92,6 +110,7 @@ function wireDesktopSocketHandlers() {
   socket.on("desktop_registered", (payload) => {
     pairCodeEl.textContent = payload.pairCode;
     statusEl.textContent = "Pair code ready. Open mobile app and enter this code.";
+    setShareLink(payload.pairCode);
 
     commandsEl.innerHTML = "";
     payload.supportedCommands.forEach((cmd) => {
@@ -166,20 +185,7 @@ function connectDesktopSocket(index) {
       connectDesktopSocket(index + 1);
       return;
     }
-    statusEl.textContent = "Backend connect failed. Netlify HTTPS page cannot call HTTP backend. Use HTTPS backend URL (e.g. https://192.168.1.10:5000 or tunnel URL).";
-    if (!backendPromptShown) {
-      backendPromptShown = true;
-      const userInput = window.prompt("Backend HTTPS URL enter karein (example: https://192.168.1.10:5000)");
-      const normalized = normalizeBackendInput(userInput);
-      if (normalized) {
-        try {
-          localStorage.setItem("pocket_backend_url", normalized);
-        } catch (_e) {
-          // ignore storage failures
-        }
-        window.location.reload();
-      }
-    }
+    statusEl.textContent = "Backend connect failed. Desktop backend ko HTTPS me run karke generated auto-pair link phone me open karein.";
   });
 
   socket.on("disconnect", () => {
@@ -217,3 +223,20 @@ commandInput.addEventListener("input", () => {
     query: commandInput.value,
   });
 });
+
+if (copyShareLinkBtn && mobileShareLinkEl) {
+  copyShareLinkBtn.addEventListener("click", async () => {
+    const value = mobileShareLinkEl.value.trim();
+    if (!value) {
+      appendLog("Pair code aane ke baad link copy karein.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      appendLog("Auto pair link copied. Isse mobile me open karein.");
+    } catch (_e) {
+      mobileShareLinkEl.select();
+      appendLog("Clipboard blocked. Link select ho gaya, manually copy karein.");
+    }
+  });
+}

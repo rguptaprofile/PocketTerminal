@@ -1,7 +1,7 @@
 function resolveBackendUrl() {
   try {
     const params = new URLSearchParams(window.location.search || "");
-    const fromQuery = (params.get("backend") || "").trim();
+    const fromQuery = normalizeBackendInput((params.get("backend") || "").trim());
     if (fromQuery) {
       localStorage.setItem("pocket_backend_url", fromQuery);
       return fromQuery;
@@ -33,6 +33,9 @@ function normalizeBackendInput(value) {
     return "";
   }
   if (v.startsWith("http://") || v.startsWith("https://")) {
+    if (window.location.protocol === "https:" && v.startsWith("http://")) {
+      return `https://${v.slice("http://".length)}`;
+    }
     return v;
   }
   if (/^\d{1,3}(\.\d{1,3}){3}(?::\d+)?$/.test(v)) {
@@ -45,7 +48,16 @@ function normalizeBackendInput(value) {
 const explicitBackend = resolveBackendUrl();
 const socketTargets = makeSocketTargets(explicitBackend);
 let socket = null;
-let backendPromptShown = false;
+const prefilledPairCode = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = (params.get("code") || "").trim();
+    return /^\d{6}$/.test(raw) ? raw : "";
+  } catch (_e) {
+    return "";
+  }
+})();
+let autoPairAttempted = false;
 
 const pairInput = document.getElementById("pair-input");
 const pairBtn = document.getElementById("pair-btn");
@@ -66,6 +78,17 @@ function emitEvent(eventName, payload) {
     return;
   }
   socket.emit(eventName, payload);
+}
+
+function triggerPairing() {
+  const pairCode = pairInput.value.trim();
+  if (!pairCode) {
+    statusEl.textContent = "Please enter pair code.";
+    return;
+  }
+
+  emitEvent("pair_mobile", { pairCode });
+  statusEl.textContent = "Pairing request sent...";
 }
 
 const speechSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -176,17 +199,18 @@ async function requestMicPermission() {
 }
 
 pairBtn.addEventListener("click", () => {
-  const pairCode = pairInput.value.trim();
-  if (!pairCode) {
-    statusEl.textContent = "Please enter pair code.";
-    return;
-  }
-
-  emitEvent("pair_mobile", { pairCode });
-  statusEl.textContent = "Pairing request sent...";
+  triggerPairing();
 });
 
 function wireMobileSocketHandlers() {
+  socket.on("connect", () => {
+    if (prefilledPairCode && !autoPairAttempted) {
+      autoPairAttempted = true;
+      pairInput.value = prefilledPairCode;
+      triggerPairing();
+    }
+  });
+
   socket.on("paired_success", (payload) => {
     dashboardEl.classList.remove("hidden");
     roomEl.textContent = payload.roomId;
@@ -301,20 +325,7 @@ function connectMobileSocket(index) {
       connectMobileSocket(index + 1);
       return;
     }
-    statusEl.textContent = "Backend connect failed. Netlify HTTPS page cannot call HTTP backend. Use HTTPS backend URL (e.g. https://192.168.1.10:5000 or tunnel URL).";
-    if (!backendPromptShown) {
-      backendPromptShown = true;
-      const userInput = window.prompt("Backend HTTPS URL enter karein (example: https://192.168.1.10:5000)");
-      const normalized = normalizeBackendInput(userInput);
-      if (normalized) {
-        try {
-          localStorage.setItem("pocket_backend_url", normalized);
-        } catch (_e) {
-          // ignore storage failures
-        }
-        window.location.reload();
-      }
-    }
+    statusEl.textContent = "Backend connect failed. Desktop se generated auto-pair link open karein.";
   });
 
   socket.on("disconnect", () => {
@@ -331,6 +342,11 @@ if (!connectMobileSocket(0)) {
   startVoiceBtn.disabled = true;
   micCheckBtn.disabled = true;
   appendLog("Socket.IO client load failed.");
+}
+
+if (prefilledPairCode) {
+  pairInput.value = prefilledPairCode;
+  statusEl.textContent = "Auto pair code detected. Backend connect hote hi pairing send hoga.";
 }
 
 manualSendBtn.addEventListener("click", () => {
