@@ -47,16 +47,17 @@ function resolveBackendUrl() {
 
 function makeSocketTargets(explicitBackend) {
   const isLocalPage = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  const isHostedPage = window.location.hostname.includes("netlify.app") || window.location.hostname.includes("vercel.app");
+  const localFallbacks = [
+    "https://127.0.0.1:5000",
+    "https://localhost:5000",
+    "http://127.0.0.1:5000",
+    "http://localhost:5000",
+  ];
   const defaults = [
+    ...(isHostedPage ? localFallbacks : []),
     window.location.origin,
-    ...(isLocalPage
-      ? [
-          "https://127.0.0.1:5000",
-          "https://localhost:5000",
-          "http://127.0.0.1:5000",
-          "http://localhost:5000",
-        ]
-      : []),
+    ...(isLocalPage ? localFallbacks : []),
   ];
   const targets = explicitBackend ? [explicitBackend, ...defaults] : defaults;
   return [...new Set(targets.filter(Boolean))];
@@ -216,7 +217,7 @@ function connectDesktopSocket(index) {
   wireDesktopSocketHandlers(target);
 
   socket.on("connect_error", () => {
-    if (!explicitBackend && index < socketTargets.length - 1) {
+    if (index < socketTargets.length - 1) {
       appendLog(`Backend connect failed on ${target}, trying next...`);
       try {
         socket.close();

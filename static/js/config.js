@@ -17,12 +17,12 @@ window.POCKET_CONFIG = (() => {
     backendUrl = savedBackend;
   }
 
-  // Production: keep backend on hosting origin only.
+  // Hosted frontend default: prefer local desktop backend so pairing works without extra backend deployment.
   if (isNetlify || isVercel) {
     if (savedBackend.includes("onrender.com")) {
       localStorage.removeItem("pocket_backend_url");
     }
-    backendUrl = window.location.origin;
+    backendUrl = backendUrl || "https://127.0.0.1:5000";
   }
   // Development: localhost uses local backend
   else if (isLocalhost) {
