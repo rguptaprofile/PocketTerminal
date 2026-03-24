@@ -28,17 +28,36 @@ from cryptography.x509.oid import NameOID
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "pocket-terminal-your-laptops-terminal-in-your-phone"
 
-# Production CORS: allow Netlify frontend + any future hosted origins
-allowed_origins = [
-    "https://pocketterminal.netlify.app",
-    "http://pocketterminal.netlify.app",
-    "http://localhost:3000",
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
-    "https://127.0.0.1:5000",
-]
-if os.getenv("POCKET_ENV") == "development":
-    allowed_origins.append("*")
+def build_allowed_origins() -> List[str]:
+    origins = [
+        "https://pocket-terminal.vercel.app",
+        "https://pocket-terminal.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5000",
+        "https://localhost:5000",
+        "http://127.0.0.1:5000",
+        "https://127.0.0.1:5000",
+    ]
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            lan_ip = s.getsockname()[0]
+            if lan_ip:
+                origins.extend([
+                    f"http://{lan_ip}:5000",
+                    f"https://{lan_ip}:5000",
+                ])
+    except Exception:
+        pass
+
+    if os.getenv("POCKET_ENV") == "development":
+        origins.append("*")
+
+    return list(dict.fromkeys(origins))
+
+
+allowed_origins = build_allowed_origins()
 
 socketio = SocketIO(
     app,
