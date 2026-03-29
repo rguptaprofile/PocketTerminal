@@ -46,25 +46,21 @@ function resolveBackendUrl() {
 
 function makeSocketTargets(explicitBackend) {
   const isLocalPage = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-  
-  // Netlify production: use only configured backend, NO localhost fallbacks
-  if (isNetlifiFrontend()) {
-    const configured = getConfiguredBackendUrl();
-    return configured ? [configured] : [];
-  }
-  
-  // Local development: try configured first, then fallbacks
-  const defaults = [
-    window.location.origin,
-    ...(isLocalPage
-      ? [
-          "https://127.0.0.1:5000",
-          "https://localhost:5000",
-          "http://127.0.0.1:5000",
-          "http://localhost:5000",
-        ]
-      : []),
+  const isHostedPage = window.location.hostname.includes("netlify.app") || window.location.hostname.includes("vercel.app");
+  const hostedCandidates = (window.POCKET_CONFIG && window.POCKET_CONFIG.BACKEND_CANDIDATES) || [];
+  const localFallbacks = [
+    "https://127.0.0.1:5000",
+    "https://localhost:5000",
+    "http://127.0.0.1:5000",
+    "http://localhost:5000",
   ];
+
+  const defaults = isHostedPage
+    ? [...hostedCandidates, window.location.origin]
+    : [
+        window.location.origin,
+        ...(isLocalPage ? localFallbacks : []),
+      ];
   const targets = explicitBackend ? [explicitBackend, ...defaults] : defaults;
   return [...new Set(targets.filter(Boolean))];
 }
@@ -348,6 +344,10 @@ function connectMobileSocket(index) {
     return false;
   }
 
+  if (!socketTargets.length || index >= socketTargets.length) {
+    return false;
+  }
+
   const target = socketTargets[index];
   socket = io(target, {
     transports: ["websocket", "polling"],
@@ -357,7 +357,7 @@ function connectMobileSocket(index) {
   wireMobileSocketHandlers();
 
   socket.on("connect_error", () => {
-    if (!explicitBackend && index < socketTargets.length - 1) {
+    if (index < socketTargets.length - 1) {
       appendLog(`Backend connect failed on ${target}, trying next...`);
       try {
         socket.close();
@@ -367,7 +367,7 @@ function connectMobileSocket(index) {
       connectMobileSocket(index + 1);
       return;
     }
-    statusEl.textContent = "Backend connect failed. Desktop se generated auto-pair link open karein.";
+    statusEl.textContent = "Backend connect failed. Desktop se generated auto-pair link open karein ya backend URL verify karein.";
   });
 
   socket.on("disconnect", () => {
@@ -378,12 +378,12 @@ function connectMobileSocket(index) {
 }
 
 if (!connectMobileSocket(0)) {
-  statusEl.textContent = "Socket library load nahi hui. Internet check karein aur page reload karein.";
+  statusEl.textContent = "Backend URL missing ya invalid hai. Desktop se generated auto-pair link open karein.";
   pairBtn.disabled = true;
   manualSendBtn.disabled = true;
   startVoiceBtn.disabled = true;
   micCheckBtn.disabled = true;
-  appendLog("Socket.IO client load failed.");
+  appendLog("Socket target unavailable. Backend configuration required.");
 }
 
 if (prefilledPairCode) {
