@@ -48,17 +48,19 @@ function resolveBackendUrl() {
 function makeSocketTargets(explicitBackend) {
   const isLocalPage = ["localhost", "127.0.0.1"].includes(window.location.hostname);
   const isHostedPage = window.location.hostname.includes("netlify.app") || window.location.hostname.includes("vercel.app");
+  const hostedCandidates = (window.POCKET_CONFIG && window.POCKET_CONFIG.BACKEND_CANDIDATES) || [];
   const localFallbacks = [
     "https://127.0.0.1:5000",
     "https://localhost:5000",
     "http://127.0.0.1:5000",
     "http://localhost:5000",
   ];
-  const defaults = [
-    ...(isHostedPage ? localFallbacks : []),
-    window.location.origin,
-    ...(isLocalPage ? localFallbacks : []),
-  ];
+  const defaults = isHostedPage
+    ? [...hostedCandidates, window.location.origin]
+    : [
+        window.location.origin,
+        ...(isLocalPage ? localFallbacks : []),
+      ];
   const targets = explicitBackend ? [explicitBackend, ...defaults] : defaults;
   return [...new Set(targets.filter(Boolean))];
 }
@@ -208,6 +210,10 @@ function connectDesktopSocket(index) {
     return false;
   }
 
+  if (!socketTargets.length || index >= socketTargets.length) {
+    return false;
+  }
+
   const target = socketTargets[index];
   socket = io(target, {
     transports: ["websocket", "polling"],
@@ -227,7 +233,7 @@ function connectDesktopSocket(index) {
       connectDesktopSocket(index + 1);
       return;
     }
-    statusEl.textContent = "Backend connect failed. Desktop backend ko HTTPS me run karke generated auto-pair link phone me open karein.";
+    statusEl.textContent = "Backend connect failed. Render backend URL verify karein: https://pocketterminal-api.onrender.com/health";
   });
 
   socket.on("disconnect", () => {
@@ -238,10 +244,10 @@ function connectDesktopSocket(index) {
 }
 
 if (!connectDesktopSocket(0)) {
-  statusEl.textContent = "Socket library load nahi hui. Internet check karein aur page reload karein.";
+  statusEl.textContent = "Backend URL missing ya invalid hai. /desktop?backend=https://pocketterminal-api.onrender.com try karein.";
   sendBtn.disabled = true;
   commandInput.disabled = true;
-  appendLog("Socket.IO client load failed.");
+  appendLog("Socket target unavailable. Backend configuration required.");
 }
 
 sendBtn.addEventListener("click", () => {

@@ -31,7 +31,7 @@ app.config["SECRET_KEY"] = "pocket-terminal-your-laptops-terminal-in-your-phone"
 def build_allowed_origins() -> List[str]:
     origins = [
         "https://pocket-terminal.vercel.app",
-        "https://pocket-terminal.vercel.app",
+        "https://pocketterminal.netlify.app",
         "http://localhost:3000",
         "http://localhost:5000",
         "https://localhost:5000",
