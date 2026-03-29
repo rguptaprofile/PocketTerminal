@@ -83,6 +83,23 @@ function normalizeBackendInput(value) {
   return v;
 }
 
+function applyBackendOverrideAndReload() {
+  if (!backendInputEl) {
+    return;
+  }
+
+  const normalized = normalizeBackendInput(backendInputEl.value || "");
+  if (!normalized) {
+    statusEl.textContent = "Valid backend URL enter karein. Example: https://your-backend.onrender.com";
+    return;
+  }
+
+  localStorage.setItem("pocket_backend_url", normalized);
+  const current = new URL(window.location.href);
+  current.searchParams.set("backend", normalized);
+  window.location.href = current.toString();
+}
+
 const explicitBackend = resolveBackendUrl();
 const socketTargets = makeSocketTargets(explicitBackend);
 let socket = null;
@@ -101,6 +118,8 @@ const suggestionsEl = document.getElementById("desktop-suggestions");
 const aiSummaryEl = document.getElementById("desktop-ai-summary");
 const mobileShareLinkEl = document.getElementById("mobile-share-link");
 const copyShareLinkBtn = document.getElementById("copy-share-link-btn");
+const backendInputEl = document.getElementById("backend-url-input");
+const backendConnectBtn = document.getElementById("backend-connect-btn");
 
 function buildMobilePairLink(pairCode) {
   const mobileBase = "https://pocketterminal.netlify.app/mobile";
@@ -233,7 +252,7 @@ function connectDesktopSocket(index) {
       connectDesktopSocket(index + 1);
       return;
     }
-    statusEl.textContent = "Backend connect failed. Render backend URL verify karein: https://pocketterminal-backend.onrender.com/health";
+    statusEl.textContent = `Backend connect failed. Tried: ${socketTargets.join(", ")}. Live backend URL daal kar Connect Backend dabayein.`;
   });
 
   socket.on("disconnect", () => {
@@ -244,10 +263,26 @@ function connectDesktopSocket(index) {
 }
 
 if (!connectDesktopSocket(0)) {
-  statusEl.textContent = "Backend URL missing ya invalid hai. /desktop?backend=https://pocketterminal-backend.onrender.com try karein.";
+  statusEl.textContent = "Backend URL missing ya invalid hai. Live backend URL daal kar Connect Backend dabayein.";
   sendBtn.disabled = true;
   commandInput.disabled = true;
   appendLog("Socket target unavailable. Backend configuration required.");
+}
+
+if (backendInputEl) {
+  backendInputEl.value = explicitBackend || (window.POCKET_CONFIG && window.POCKET_CONFIG.BACKEND_URL) || "";
+}
+
+if (backendConnectBtn) {
+  backendConnectBtn.addEventListener("click", applyBackendOverrideAndReload);
+}
+
+if (backendInputEl) {
+  backendInputEl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      applyBackendOverrideAndReload();
+    }
+  });
 }
 
 sendBtn.addEventListener("click", () => {
