@@ -233,7 +233,7 @@ function connectDesktopSocket(index) {
       connectDesktopSocket(index + 1);
       return;
     }
-    statusEl.textContent = "Backend connect failed. Render backend URL verify karein: https://pocketterminal-api.onrender.com/health";
+    statusEl.textContent = "Backend connect failed. Render backend URL verify karein: https://pocketterminal-backend.onrender.com/health";
   });
 
   socket.on("disconnect", () => {
@@ -244,7 +244,7 @@ function connectDesktopSocket(index) {
 }
 
 if (!connectDesktopSocket(0)) {
-  statusEl.textContent = "Backend URL missing ya invalid hai. /desktop?backend=https://pocketterminal-api.onrender.com try karein.";
+  statusEl.textContent = "Backend URL missing ya invalid hai. /desktop?backend=https://pocketterminal-backend.onrender.com try karein.";
   sendBtn.disabled = true;
   commandInput.disabled = true;
   appendLog("Socket target unavailable. Backend configuration required.");

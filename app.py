@@ -51,6 +51,13 @@ def build_allowed_origins() -> List[str]:
     except Exception:
         pass
 
+    extra_origins = [
+        item.strip()
+        for item in os.getenv("POCKET_ALLOWED_ORIGINS", "").split(",")
+        if item.strip()
+    ]
+    origins.extend(extra_origins)
+
     if os.getenv("POCKET_ENV") == "development":
         origins.append("*")
 

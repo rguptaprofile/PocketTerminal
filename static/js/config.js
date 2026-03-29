@@ -1,6 +1,7 @@
 // Environment-aware backend configuration
 window.POCKET_CONFIG = (() => {
   const HOSTED_BACKEND_CANDIDATES = [
+    "https://pocketterminal-backend.onrender.com",
     "https://pocketterminal.onrender.com",
     "https://pocketterminal-api.onrender.com",
     "https://pocket-terminal-api.onrender.com",
