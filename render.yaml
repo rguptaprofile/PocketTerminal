@@ -13,5 +13,7 @@ services:
         value: "0"
       - key: POCKET_ENABLE_ML
         value: "0"
+      - key: POCKET_ALLOW_ALL_ORIGINS
+        value: "1"
       - key: POCKET_ALLOWED_ORIGINS
-        value: https://pocket-terminal.vercel.app
+        value: "*"

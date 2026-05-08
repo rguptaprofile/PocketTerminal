@@ -29,6 +29,9 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "pocket-terminal-your-laptops-terminal-in-your-phone"
 
 def build_allowed_origins() -> List[str]:
+    if os.getenv("POCKET_ALLOW_ALL_ORIGINS", "0") == "1":
+        return ["*"]
+
     origins = [
         "https://pocket-terminal.vercel.app",
         "https://pocketterminal.netlify.app",
@@ -56,6 +59,10 @@ def build_allowed_origins() -> List[str]:
         for item in os.getenv("POCKET_ALLOWED_ORIGINS", "").split(",")
         if item.strip()
     ]
+
+    if "*" in extra_origins:
+        return ["*"]
+
     origins.extend(extra_origins)
 
     if os.getenv("POCKET_ENV") == "development":
