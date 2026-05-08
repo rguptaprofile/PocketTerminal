@@ -105,6 +105,8 @@ const socketTargets = makeSocketTargets(explicitBackend);
 let socket = null;
 let connectedSocketTarget = explicitBackend || "";
 let mobileBackendHint = "";
+const MAX_CONNECTION_ROUNDS = 3;
+const RETRY_DELAY_MS = 1500;
 
 const pairCodeEl = document.getElementById("pair-code");
 const statusEl = document.getElementById("desktop-status");
@@ -122,9 +124,8 @@ const backendInputEl = document.getElementById("backend-url-input");
 const backendConnectBtn = document.getElementById("backend-connect-btn");
 
 function buildMobilePairLink(pairCode) {
-  const mobileBase = "https://pocketterminal.netlify.app/mobile";
   const backendUrl = mobileBackendHint || connectedSocketTarget || explicitBackend || window.location.origin;
-  const link = new URL(mobileBase);
+  const link = new URL("/mobile", window.location.origin);
   link.searchParams.set("backend", backendUrl);
   link.searchParams.set("code", pairCode);
   return link.toString();
@@ -224,7 +225,7 @@ function wireDesktopSocketHandlers(target) {
   });
 }
 
-function connectDesktopSocket(index) {
+function connectDesktopSocket(index, round = 0) {
   if (typeof io !== "function") {
     return false;
   }
@@ -249,9 +250,19 @@ function connectDesktopSocket(index) {
       } catch (_e) {
         // ignore close errors
       }
-      connectDesktopSocket(index + 1);
+      connectDesktopSocket(index + 1, round);
       return;
     }
+
+    if (round < MAX_CONNECTION_ROUNDS - 1) {
+      statusEl.textContent = "Backend waking up... retrying automatically.";
+      appendLog(`All backend targets failed. Retry round ${round + 2}/${MAX_CONNECTION_ROUNDS} in ${RETRY_DELAY_MS}ms...`);
+      setTimeout(() => {
+        connectDesktopSocket(0, round + 1);
+      }, RETRY_DELAY_MS);
+      return;
+    }
+
     statusEl.textContent = `Backend connect failed. Tried: ${socketTargets.join(", ")}. Live backend URL daal kar Connect Backend dabayein.`;
   });
 
