@@ -125,6 +125,15 @@ function triggerPairing() {
     return;
   }
 
+  if (!socket || !socket.connected) {
+    statusEl.textContent = "Backend connect nahi hua. Wait karein...";
+    appendLog("Socket not connected. Trying to reconnect...");
+    if (socket) {
+      socket.connect();
+    }
+    return;
+  }
+
   emitEvent("pair_mobile", { pairCode });
   statusEl.textContent = "Pairing request sent...";
 }
@@ -239,6 +248,14 @@ async function requestMicPermission() {
 pairBtn.addEventListener("click", () => {
   triggerPairing();
 });
+
+if (pairInput) {
+  pairInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      triggerPairing();
+    }
+  });
+}
 
 function wireMobileSocketHandlers() {
   socket.on("connect", () => {
