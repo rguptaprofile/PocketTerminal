@@ -26,17 +26,17 @@ function resolveBackendUrl() {
       return fromQuery;
     }
 
-    const configured = getConfiguredBackendUrl();
-    if (configured) {
-      localStorage.setItem("pocket_backend_url", configured);
-      return configured;
-    }
-
     const saved = (localStorage.getItem("pocket_backend_url") || "").trim();
     if (saved) {
       const normalizedSaved = normalizeBackendInput(saved);
       localStorage.setItem("pocket_backend_url", normalizedSaved);
       return normalizedSaved;
+    }
+
+    const configured = getConfiguredBackendUrl();
+    if (configured) {
+      localStorage.setItem("pocket_backend_url", configured);
+      return configured;
     }
   } catch (_e) {
     // ignore storage/query parsing issues
@@ -86,6 +86,8 @@ function normalizeBackendInput(value) {
 const explicitBackend = resolveBackendUrl();
 const socketTargets = makeSocketTargets(explicitBackend);
 let socket = null;
+const MAX_CONNECTION_ROUNDS = 3;
+const RETRY_DELAY_MS = 1500;
 const prefilledPairCode = (() => {
   try {
     const params = new URLSearchParams(window.location.search || "");
@@ -356,7 +358,7 @@ function wireMobileSocketHandlers() {
   });
 }
 
-function connectMobileSocket(index) {
+function connectMobileSocket(index, round = 0) {
   if (typeof io !== "function") {
     return false;
   }
@@ -381,9 +383,19 @@ function connectMobileSocket(index) {
       } catch (_e) {
         // ignore close errors
       }
-      connectMobileSocket(index + 1);
+      connectMobileSocket(index + 1, round);
       return;
     }
+
+    if (round < MAX_CONNECTION_ROUNDS - 1) {
+      statusEl.textContent = "Backend waking up... retrying automatically.";
+      appendLog(`All backend targets failed. Retry round ${round + 2}/${MAX_CONNECTION_ROUNDS} in ${RETRY_DELAY_MS}ms...`);
+      setTimeout(() => {
+        connectMobileSocket(0, round + 1);
+      }, RETRY_DELAY_MS);
+      return;
+    }
+
     statusEl.textContent = "Backend connect failed. Desktop se generated auto-pair link open karein ya backend URL verify karein.";
   });
 

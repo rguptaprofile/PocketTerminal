@@ -27,17 +27,17 @@ function resolveBackendUrl() {
       return normalized;
     }
 
-    const configured = getConfiguredBackendUrl();
-    if (configured) {
-      localStorage.setItem("pocket_backend_url", configured);
-      return configured;
-    }
-
     const saved = (localStorage.getItem("pocket_backend_url") || "").trim();
     if (saved) {
       const normalizedSaved = normalizeBackendInput(saved);
       localStorage.setItem("pocket_backend_url", normalizedSaved);
       return normalizedSaved;
+    }
+
+    const configured = getConfiguredBackendUrl();
+    if (configured) {
+      localStorage.setItem("pocket_backend_url", configured);
+      return configured;
     }
   } catch (_e) {
     // ignore storage/query parsing issues
