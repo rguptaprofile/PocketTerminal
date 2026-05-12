@@ -755,9 +755,39 @@ def voice_command(payload):
         workflow_intent, workflow_conf, workflow_suggestions = ai_predict_workflow(command_text)
         action_to_run = predicted_action or command_text.strip().lower()
 
-        result = run_desktop_action(action_to_run)
-        if result.startswith("Unsupported"):
+        use_workflow = False
+        lowered_cmd = command_text.strip().lower()
+        workflow_keywords = [
+            "shutdown",
+            "restart",
+            "reboot",
+            "lock screen",
+            "lock laptop",
+            "lock pc",
+            "open ",
+            "close ",
+            "search ",
+            "search web",
+            "open website",
+            "open url",
+            "create ",
+            "delete ",
+            "run ",
+            "execute ",
+            "command ",
+        ]
+        if any(keyword in lowered_cmd for keyword in workflow_keywords):
+            use_workflow = True
+        if workflow_intent and not use_workflow:
+            if not predicted_action or workflow_conf >= confidence:
+                use_workflow = True
+
+        if use_workflow:
             result = run_dynamic_desktop_workflow(command_text)
+        else:
+            result = run_desktop_action(action_to_run)
+            if result.startswith("Unsupported"):
+                result = run_dynamic_desktop_workflow(command_text)
 
         ok = result.startswith("Executed") or result.startswith("Shell command executed")
         if ok:
