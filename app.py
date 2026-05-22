@@ -476,6 +476,7 @@ def _execute_shell_command(cmd: str) -> str:
 def run_dynamic_desktop_workflow(command_text: str) -> str:
     # Normalize separators so inputs like "open_file explorer" also work.
     raw = re.sub(r"[_]+", " ", command_text.strip())
+    raw = re.sub(r"\s+", " ", raw).strip()
     lowered = raw.lower()
 
     try:
@@ -546,7 +547,12 @@ def run_dynamic_desktop_workflow(command_text: str) -> str:
             if os.path.isfile(file_target):
                 os.startfile(file_target)
                 return f"Executed desktop workflow: opened file {file_target}."
+            if os.path.isdir(file_target):
+                os.startfile(file_target)
+                return f"Executed desktop workflow: opened folder {file_target}."
             return f"File not found: {file_target}"
+        if lowered in {"open file", "file open", "openfile"}:
+            return "Please provide a file path. Example: open file C:/Users/Public/test.txt"
 
         folder_target = _extract_after_prefix(raw, ["open folder", "folder open"])
         if folder_target:
@@ -569,8 +575,19 @@ def run_dynamic_desktop_workflow(command_text: str) -> str:
 
         app_target = _extract_after_prefix(lowered, ["open app", "launch app", "start app", "open "])
         if app_target and not app_target.startswith(("website", "url", "file", "folder")):
-            subprocess.Popen(["cmd", "/c", "start", "", app_target], shell=False)
-            return f"Executed desktop workflow: opened app {app_target}."
+            app_aliases = {
+                "calculator": "calc",
+                "calc": "calc",
+                "notepad": "notepad",
+                "cmd": "cmd",
+                "command prompt": "cmd",
+                "file explorer": "explorer",
+                "explorer": "explorer",
+                "chrome": "chrome",
+            }
+            resolved = app_aliases.get(app_target, app_target)
+            subprocess.Popen(["cmd", "/c", "start", "", resolved], shell=False)
+            return f"Executed desktop workflow: opened app {resolved}."
 
         create_folder_target = _extract_after_prefix(raw, ["create folder", "new folder", "make folder"])
         if create_folder_target:
@@ -776,10 +793,13 @@ def voice_command(payload):
             "execute ",
             "command ",
         ]
-        if any(keyword in lowered_cmd for keyword in workflow_keywords):
+        if predicted_action:
+            use_workflow = False
+        elif any(keyword in lowered_cmd for keyword in workflow_keywords):
             use_workflow = True
-        if workflow_intent and not use_workflow:
-            if not predicted_action or workflow_conf >= confidence:
+
+        if workflow_intent and not predicted_action:
+            if not use_workflow or workflow_conf >= confidence:
                 use_workflow = True
 
         if use_workflow:
