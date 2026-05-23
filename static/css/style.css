@@ -32,6 +32,16 @@ body {
     linear-gradient(135deg, var(--bg) 0%, #e8f3fc 40%, #e6f3ef 100%);
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url("../img/ai-ml-bg.jpg") center / cover no-repeat;
+  opacity: 0.2;
+}
+
 h1,
 h2,
 h3,
