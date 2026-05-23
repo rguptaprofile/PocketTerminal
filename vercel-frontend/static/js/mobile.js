@@ -88,6 +88,11 @@ const socketTargets = makeSocketTargets(explicitBackend);
 let socket = null;
 const MAX_CONNECTION_ROUNDS = 3;
 const RETRY_DELAY_MS = 1500;
+const MAX_PAIR_RETRIES = Math.max(0, socketTargets.length - 1);
+let currentTargetIndex = 0;
+let lastPairCode = "";
+let pairRetryCount = 0;
+let pendingPairRetry = false;
 const prefilledPairCode = (() => {
   try {
     const params = new URLSearchParams(window.location.search || "");
@@ -126,6 +131,8 @@ function triggerPairing() {
     statusEl.textContent = "Please enter pair code.";
     return;
   }
+
+  lastPairCode = pairCode;
 
   if (!socket || !socket.connected) {
     statusEl.textContent = "Backend connect nahi hua. Wait karein...";
@@ -261,6 +268,13 @@ if (pairInput) {
 
 function wireMobileSocketHandlers() {
   socket.on("connect", () => {
+    if (pendingPairRetry && lastPairCode) {
+      pendingPairRetry = false;
+      pairInput.value = lastPairCode;
+      triggerPairing();
+      return;
+    }
+
     if (prefilledPairCode && !autoPairAttempted) {
       autoPairAttempted = true;
       pairInput.value = prefilledPairCode;
@@ -269,6 +283,7 @@ function wireMobileSocketHandlers() {
   });
 
   socket.on("paired_success", (payload) => {
+    pairRetryCount = 0;
     dashboardEl.classList.remove("hidden");
     roomEl.textContent = payload.roomId;
     statusEl.textContent = `Paired with desktop code ${payload.pairCode}`;
@@ -287,6 +302,20 @@ function wireMobileSocketHandlers() {
   socket.on("pair_error", (payload) => {
     statusEl.textContent = payload.message;
     appendLog(`Pair error: ${payload.message}`);
+
+    const isInvalid = (payload.message || "").toLowerCase().includes("invalid pairing code");
+    if (isInvalid && pairRetryCount < MAX_PAIR_RETRIES) {
+      pairRetryCount += 1;
+      pendingPairRetry = true;
+      const nextIndex = (currentTargetIndex + 1) % socketTargets.length;
+      appendLog(`Pair code not found on ${socketTargets[currentTargetIndex]}. Trying ${socketTargets[nextIndex]}...`);
+      try {
+        socket.close();
+      } catch (_e) {
+        // ignore close errors
+      }
+      connectMobileSocket(nextIndex, 0);
+    }
   });
 
   socket.on("command_result", (payload) => {
@@ -368,6 +397,7 @@ function connectMobileSocket(index, round = 0) {
   }
 
   const target = socketTargets[index];
+  currentTargetIndex = index;
   socket = io(target, {
     transports: ["websocket", "polling"],
     timeout: 10000,
