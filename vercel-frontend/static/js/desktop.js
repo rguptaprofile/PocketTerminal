@@ -122,8 +122,30 @@ const backendInputEl = document.getElementById("backend-url-input");
 const backendConnectBtn = document.getElementById("backend-connect-btn");
 
 function buildMobilePairLink(pairCode) {
-  const mobileBase = "https://pocketterminal.netlify.app/mobile";
   const backendUrl = mobileBackendHint || connectedSocketTarget || explicitBackend || window.location.origin;
+  const isLocalBackend = (() => {
+    try {
+      const target = new URL(backendUrl);
+      const host = target.hostname.toLowerCase();
+      return (
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        /^192\.168\./.test(host) ||
+        /^10\./.test(host) ||
+        /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+      );
+    } catch (_e) {
+      return false;
+    }
+  })();
+
+  if (isLocalBackend) {
+    const localLink = new URL("/mobile", backendUrl);
+    localLink.searchParams.set("code", pairCode);
+    return localLink.toString();
+  }
+
+  const mobileBase = "https://pocketterminal.netlify.app/mobile";
   const link = new URL(mobileBase);
   link.searchParams.set("backend", backendUrl);
   link.searchParams.set("code", pairCode);
