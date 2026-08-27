@@ -1,6 +1,6 @@
 # 🎯 POCKET TERMINAL : YOUR LAPTOP'S TERMINAL IN YOUR PHONE
 
-## Advanced Remote Device Control Platform with 99%+ Accuracy ML/AI
+## Advanced Remote Device Control Platform with 80%+ Accuracy ML/AI
 
 > Control your laptop remotely with your phone using voice commands, manual input, and AI-powered intent recognition. Powered by **Deep Learning Neural Networks** and **Generative AI** for production-grade accuracy.
 
