@@ -25,7 +25,7 @@
 **POCKET TERMINAL** is an enterprise-grade remote control platform that bridges your mobile device and laptop using:
 
 - ✅ **Voice Recognition** - Natural language command processing
-- ✅ **Deep Learning (99%+ Accuracy)** - Neural network-based intent classification
+- ✅ **Deep Learning (80%+ Accuracy)** - Neural network-based intent classification
 - ✅ **Generative AI** - Smart command suggestions using transformer models
 - ✅ **Real-time WebSocket Communication** - Instant command execution
 - ✅ **Hybrid Architecture** - Secure pairing + room-based session isolation
@@ -54,7 +54,7 @@
 Naive Bayes (Legacy)      →  Deep Learning Neural Network  (Current)
 ├─ Accuracy: ~75-80%      ├─ LSTM Architecture
 ├─ Speed: Fast            ├─ Transformer Embeddings
-└─ Limited context        ├─ Accuracy: 99%+
+└─ Limited context        ├─ Accuracy: 80%+
                           └─ Context-aware predictions
 ```
 
